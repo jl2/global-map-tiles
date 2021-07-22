@@ -1,0 +1,15 @@
+* global-map-tiles
+** About
+   Translate latitude and longitude to  XYZ tile coordinates.
+
+   Based on [[https://github.com/datalyze-solutions/globalmaptiles][this Python code]].
+
+** License
+MIT, see [[file:LICENSE][LICENSE]]
+
+Copyright (c) 2021 Jeremiah LaRocco <jeremiah_larocco@fastmail.com>
+
+
+* Plan
+** Implement GlobalGeodetic class
+** Use keyword arguments instead of classes?
