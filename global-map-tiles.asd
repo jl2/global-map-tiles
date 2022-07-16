@@ -1,6 +1,6 @@
 ;; global-map-tiles.asd
 ;;
-;; Copyright (c) 2021 Jeremiah LaRocco <jeremiah_larocco@fastmail.com>
+;; Copyright (c) 2022 Jeremiah LaRocco <jeremiah_larocco@fastmail.com>
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining a
 ;; copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
 ;; DEALINGS IN THE SOFTWARE.
 
 (asdf:defsystem #:global-map-tiles
-  :description "Translate latitude and longitude to  XYZ tile coordinates.~
+  :description "Translate latitude and longitude into  XYZ tile coordinates.~
 Based on [this Python code](https://github.com/datalyze-solutions/globalmaptiles)"
   :author "Jeremiah LaRocco <jeremiah_larocco@fastmail.com>"
   :license  "ISC"

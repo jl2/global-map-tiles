@@ -28,7 +28,7 @@
   (:export
 
    #:global-mercator
-
+   #:lat-lon-tile-boundary
    #:initial-resolution
    #:origin-shift
    #:lat-lon-to-meters

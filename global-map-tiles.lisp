@@ -1,6 +1,6 @@
 ;; global-map-tiles.lisp
 ;;
-;; Copyright (c) 2021 Jeremiah LaRocco <jeremiah_larocco@fastmail.com>
+;; Copyright (c) 2022 Jeremiah LaRocco <jeremiah_larocco@fastmail.com>
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining a
 ;; copy of this software and associated documentation files (the "Software"),
@@ -23,118 +23,150 @@
 (in-package :global-map-tiles)
 
 (defclass global-mercator ()
-  ((tile-size :initform 256 :initarg :tile-size :accessor tile-size)))
+  ((tile-size :initform 256 :type fixnum :initarg :tile-size :accessor tile-size)))
 
-(defgeneric initial-resolution (coord-system))
-(defgeneric origin-shift (coord-system))
-(defgeneric lat-lon-to-meters (cs lat lon))
-(defgeneric meters-to-lat-lon (cs mx my))
-(defgeneric resolution (cs zoom))
-(defgeneric pixels-to-meters (cs px py zoom))
-(defgeneric meters-to-pixels (cs mx my zoom))
-(defgeneric pixels-to-tile (cs px py))
-(defgeneric pixels-to-raster (cs px py zoom))
-(defgeneric meters-to-tile (cs mx my zoom))
-(defgeneric tile-bounds (cs tx ty zoom))
-(defgeneric tile-lat-lon-bounds (cs tx ty zoom))
-(defgeneric zoom-for-pixel-size (cs pixel-size))
-(defgeneric google-tile (cs tx ty zoom))
-(defgeneric quad-tree (cs tx ty zoom))
+(defparameter *default-coordinate-system* (make-instance 'global-mercator))
 
+(declaim (optimize (speed 1) (space 3) (debug 0) (compilation-speed 0) (safety 0))
+         (inline #:global-mercator
+                 #:initial-resolution
+                 #:origin-shift
+                 #:lat-lon-to-meters
+                 #:meters-to-lat-lon
+                 #:resolution
+                 #:pixels-to-meters
+                 #:meters-to-pixels
+                 #:pixels-to-tile
+                 #:pixels-to-raster
+                 #:meters-to-tile
+                 #:tile-bounds
+                 #:tile-lat-lon-bounds
+                 #:zoom-for-pixel-size
+                 #:google-tile
+                 #:quad-tree))
 
-(defmethod initial-resolution ((coord-system global-mercator))
+;; (defgeneric initial-resolution (coord-system))
+;; (defgeneric origin-shift (coord-system))
+;; (defgeneric lat-lon-to-meters (cs lat lon))
+;; (defgeneric meters-to-lat-lon (cs mx my))
+;; (defgeneric resolution (cs zoom))
+;; (defgeneric pixels-to-meters (cs px py zoom))
+;; (defgeneric meters-to-pixels (cs mx my zoom))
+;; (defgeneric pixels-to-tile (cs px py))
+;; (defgeneric pixels-to-raster (cs px py zoom))
+;; (defgeneric meters-to-tile (cs mx my zoom))
+;; (defgeneric tile-bounds (cs tx ty zoom))
+;; (defgeneric tile-lat-lon-bounds (cs tx ty zoom))
+;; (defgeneric zoom-for-pixel-size (cs pixel-size))
+;; (defgeneric google-tile (cs tx ty zoom))
+;; (defgeneric quad-tree (cs tx ty zoom))
+
+(defun lat-lon-tile-boundary (zoom min-lat min-lon max-lat max-lon
+                              &key (coord-system  *default-coordinate-system*))
+  (multiple-value-call
+      #'values
+    (multiple-value-call #'meters-to-tile zoom (lat-lon-to-meters min-lat min-lon :coord-system coord-system) :coord-system coord-system)
+    (multiple-value-call #'meters-to-tile zoom (lat-lon-to-meters max-lat max-lon :coord-system coord-system) :coord-system coord-system)))
+
+(defun initial-resolution (coord-system)
   (with-slots (tile-size) coord-system
-    (/ (* 2 pi 6378137) tile-size)))
+    (/ (* 2.0 pi 6378137.0) tile-size)))
 
-(defmethod origin-shift ((coord-system global-mercator))
+(defun origin-shift (coord-system)
+  (declare (ignorable coord-system))
   (* pi 6378137))
 
-(defmethod lat-lon-to-meters ((cs global-mercator) lat lon)
-  (declare (ignorable cs))
-  (let ((mx (/ (* lon (origin-shift cs)) 180))
-        (my (/ (log (tan (* (+ 90 lat) (/ pi 360)))) (/ pi 180))))
-    (values mx (/ (* my (origin-shift cs)) 180))))
+(defun lat-lon-to-meters (lat lon
+                          &key (coord-system *default-coordinate-system*))
+  (let ((mx (/ (* lon (origin-shift coord-system))
+               180.0))
+
+        (my (/ (log
+                (tan (*
+                      (+ 90.0 lat)
+                        (/ pi 360.0))))
+               (/ pi
+                  180.0))))
+    (values mx (/ (* my (origin-shift coord-system)) 180.0))))
 
 
-(defmethod meters-to-lat-lon ((cs global-mercator) mx my)
-  (declare (ignorable cs))
-  (let ((lon (* 180 (/ mx (origin-shift cs))))
-        (lat (* 180 (/ my (origin-shift cs)))))
+(defun meters-to-lat-lon (mx my &key (coord-system *default-coordinate-system*))
+  (let ((lon (* 180.0 (/ mx (origin-shift coord-system))))
+        (lat (* 180.0 (/ my (origin-shift coord-system)))))
     (values
-     (* (/ 180 pi)
-        (- (* 2
+     (* (/ 180.0 pi)
+        (- (* 2.0
               (atan (exp (* lat
-                            (/ pi 180)))))
-           (/ pi 2)))
+                            (/ pi 180.0)))))
+           (/ pi 2.0)))
      lon)))
 
 
-(defmethod resolution ((cs global-mercator) zoom)
-  (declare (ignorable cs))
-  (/ (initial-resolution cs) (expt 2 zoom)))
+(defun resolution (zoom &key (coord-system *default-coordinate-system*))
+  (/ (initial-resolution coord-system) (expt 2 zoom)))
 
 
-(defmethod pixels-to-meters ((cs global-mercator) px py zoom)
-  (declare (ignorable cs))
-  (let* ((res (resolution cs zoom))
-         (mx (- (* px res) (origin-shift cs)))
-         (my (- (* py res) (origin-shift cs))))
+(defun pixels-to-meters (zoom px py &key (coord-system *default-coordinate-system*))
+  (let* ((res (resolution zoom :coord-system coord-system))
+         (mx (- (* px res) (origin-shift coord-system)))
+         (my (- (* py res) (origin-shift coord-system))))
     (values mx my)))
 
 
-(defmethod meters-to-pixels ((cs global-mercator) mx my zoom)
-  (declare (ignorable cs))
-  (let* ((res (resolution cs zoom))
-         (px (/ (+ mx (origin-shift cs)) res))
-         (py (/ (+ my (origin-shift cs)) res)))
+(defun meters-to-pixels (zoom mx my &key (coord-system *default-coordinate-system*))
+  (let* ((res (resolution zoom :coord-system coord-system))
+         (px (/ (+ mx (origin-shift coord-system)) res))
+         (py (/ (+ my (origin-shift coord-system)) res)))
     (values px py)))
 
 
-(defmethod pixels-to-tile ((cs global-mercator) px py)
-  (declare (ignorable cs))
-  (let ((tx (1- (ceiling px (tile-size cs))))
-        (ty (1- (ceiling py (tile-size cs)))))
+(defun pixels-to-tile (px py &key (coord-system *default-coordinate-system*))
+  (let ((tx (1- (ceiling px (tile-size coord-system))))
+        (ty (1- (ceiling py (tile-size coord-system)))))
     (values tx ty)))
 
-(defmethod pixels-to-raster ((cs global-mercator) px py zoom)
-  (declare (ignorable cs))
-  (let ((map-size (ash (tile-size cs) zoom)))
+(defun pixels-to-raster (zoom px py &key (coord-system *default-coordinate-system*))
+  (let ((map-size (ash (tile-size coord-system) zoom)))
     (values px (- map-size py))))
 
-(defmethod meters-to-tile ((cs global-mercator) mx my zoom)
-  (multiple-value-call #'pixels-to-tile cs (meters-to-pixels cs mx my zoom)))
+(defun meters-to-tile (zoom mx my &key (coord-system *default-coordinate-system*))
+  (multiple-value-call
+      #'pixels-to-tile
+    (meters-to-pixels zoom mx my :coord-system coord-system)
+    :coord-system coord-system))
 
-(defmethod tile-bounds ((cs global-mercator) tx ty zoom)
-  (with-slots (tile-size) cs
+(defun tile-bounds (zoom tx ty &key (coord-system *default-coordinate-system*))
+  (with-slots (tile-size) coord-system
     (multiple-value-bind (minx miny)
-        (pixels-to-meters cs
+        (pixels-to-meters zoom
                           (* tx tile-size)
                           (* ty tile-size)
-                          zoom)
+                          :coord-system coord-system)
       (multiple-value-bind (maxx maxy)
-          (pixels-to-meters cs
+          (pixels-to-meters zoom
                             (* (1+ tx) tile-size)
                             (* (1+ ty) tile-size)
-                            zoom)
+                            :coord-system coord-system)
         (values minx miny maxx maxy)))))
 
-(defmethod tile-lat-lon-bounds ((cs global-mercator) tx ty zoom)
-  (multiple-value-bind (minx miny maxx maxy) (tile-bounds cs tx ty zoom)
-    (multiple-value-bind (min-lat min-lon) (meters-to-lat-lon cs minx miny)
-      (multiple-value-bind (max-lat max-lon) (meters-to-lat-lon cs maxx maxy)
+(defun tile-lat-lon-bounds (zoom tx ty &key (coord-system *default-coordinate-system*))
+  (multiple-value-bind (minx miny maxx maxy) (tile-bounds zoom tx ty :coord-system coord-system)
+    (multiple-value-bind (min-lat min-lon) (meters-to-lat-lon minx miny :coord-system coord-system)
+      (multiple-value-bind (max-lat max-lon) (meters-to-lat-lon maxx maxy :coord-system coord-system)
         (values min-lat min-lon max-lat max-lon)))))
 
-(defmethod zoom-for-pixel-size ((cs global-mercator) pixel-size)
+(defun zoom-for-pixel-size (pixel-size &key (coord-system *default-coordinate-system*))
   (loop for i below 30
-        if (> pixel-size (resolution cs i)) do
+        if (> pixel-size (resolution i :coord-system coord-system)) do
           (return-from zoom-for-pixel-size
             (if (not (zerop i))
                 (1- i)
                 0))))
-(defmethod google-tile ((cs global-mercator) tx ty zoom)
+
+(defun google-tile (zoom tx ty)
   (values tx (- (1- (expt 2 zoom)) ty)) zoom)
 
-(defmethod quad-tree ((cs global-mercator) tx ty zoom)
+(defun quad-tree (zoom tx ty)
   (concatenate
    'string
    (loop with real-ty = (- (expt 2 zoom) 1 ty)

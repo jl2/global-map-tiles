@@ -38,52 +38,61 @@
 (5am:test global-mercator-test-cases
  (let (
         (cs (make-instance 'gmt:global-mercator))
-          (lat-lons '((10 40.0d0 -105.0d0)
-                      ))
-        (meters '((-11688546.533293726d0 4865942.279503177d0)
-                  ))
-        (xyz '((213 636)
-               ))
-        (goog '((213 387)
-                ))
-        (lat-lon-bounds '((39.90973623453719d0 -105.1171875d0 40.17887331434698d0 -104.765625d0)
+        (lat-lons '((10 40.0d0 -105.0d0)))
+        (meters '((-11688546.533293726d0
+                   4865942.279503177d0)))
+        (xyz '((213 636)))
+        (goog '((213 387)))
+        (lat-lon-bounds '((39.90973623453719d0 -105.1171875d0
+                           40.17887331434698d0 -104.765625d0)
                           ))
-        (epsg-bounds '((-11701591.786121063d0 4852834.0517692715d0 -11662456.027639052d0 4891969.810251281d0)
-                        ))
-        (quadkey '("0231010123"
-                   )))
+        (epsg-bounds '((-11701591.786121063d0 4852834.0517692715d0
+                        -11662456.027639052d0 4891969.810251281d0)
+                       ))
+        (quadkey '("0231010123")))
     (loop
-      for (zoom lat lon) in lat-lons
-      for (expected-mx expected-my) in meters
-      for (expected-tx expected-ty) in xyz
-      for (expected-gx expected-gy) in goog
-      for (expected-min-lat expected-min-lon expected-max-lat expected-max-lon) in lat-lon-bounds
-      for (expected-min-mx expected-min-my expected-max-mx expected-max-my) in epsg-bounds
-      for expected-qk in quadkey
-      do
+      :for (zoom lat lon)
+        :in lat-lons
+      :for (expected-mx expected-my)
+        :in meters
+      :for (expected-tx expected-ty)
+        :in xyz
+      :for (expected-gx expected-gy)
+        :in goog
+      :for (expected-min-lat expected-min-lon expected-max-lat expected-max-lon)
+        :in lat-lon-bounds
+      :for (expected-min-mx expected-min-my expected-max-mx expected-max-my)
+        :in epsg-bounds
+      :for expected-qk :in quadkey
+      :do
          ;; convert to meters
-         (multiple-value-bind (mx my) (gmt:lat-lon-to-meters cs lat lon)
+         (multiple-value-bind (mx my)
+             (gmt:lat-lon-to-meters lat lon :coord-system cs)
            (is-true (near mx expected-mx))
            (is-true (near my expected-my))
            ;; meters to lat lon
-           (multiple-value-bind (exp-lat exp-lon) (gmt:meters-to-lat-lon cs mx my)
+           (multiple-value-bind (exp-lat exp-lon)
+               (gmt:meters-to-lat-lon mx my :coord-system cs)
              (is-true (near lat exp-lat))
              (is-true (near lon exp-lon)))
 
            ;; convert to tiles
-           (multiple-value-bind (tx ty) (gmt:meters-to-tile cs expected-mx expected-my zoom)
+           (multiple-value-bind (tx ty)
+               (gmt:meters-to-tile zoom expected-mx expected-my :coord-system cs)
              (is-true (= tx expected-tx))
              (is-true (= ty expected-ty))
 
-             (is-true (string= expected-qk (gmt:quad-tree cs tx ty zoom)))
+             (is-true (string= expected-qk (gmt:quad-tree zoom tx ty)))
 
              ;; Convert tiles to pi
-             (multiple-value-bind (min-mx min-my max-mx max-my) (gmt:tile-bounds cs tx ty zoom)
+             (multiple-value-bind (min-mx min-my max-mx max-my)
+                 (gmt:tile-bounds zoom tx ty :coord-system cs)
                (is-true (near min-mx expected-min-mx))
                (is-true (near min-my expected-min-my))
                (is-true (near max-mx expected-max-mx))
                (is-true (near max-my expected-max-my)))
-             (multiple-value-bind (min-lat min-lon max-lat max-lon) (gmt:tile-lat-lon-bounds cs tx ty zoom)
+             (multiple-value-bind (min-lat min-lon max-lat max-lon)
+                 (gmt:tile-lat-lon-bounds zoom tx ty :coord-system cs)
                (is-true (near min-lat expected-min-lat))
                (is-true (near min-lon expected-min-lon))
                (is-true (near max-lat expected-max-lat))
